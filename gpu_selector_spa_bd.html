@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Guide for 3D Rendering (20k-30k BDT)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutral (BG: #F5F5F5), Text (Slate: #475569), Accents (NVIDIA Green: #76B900, AMD Red: #ED1C24, Intel Blue: #0071C5) -->
+    <!-- Application Structure Plan: A single-page dashboard design with a sticky navigation header. The flow is: 1. Introduction, 2. Interactive Key Concepts (expandable cards), 3. Main Interactive GPU Comparison Tool (filters, dynamic bar chart, detailed cards), 4. Curated Top Recommendations, 5. Actionable System Checklist. This non-linear, tool-oriented structure was chosen over a report format to empower the user to directly compare performance data and explore options based on their own priorities (brand preference, performance), making the decision process more active and personalized. -->
+    <!-- Visualization & Content Choices: 
+    - Report Info: Blender Cycles performance data. Goal: Compare. Viz: Dynamic horizontal bar chart (Chart.js). Interaction: Brand filters update the chart and GPU list. Justification: A bar chart is the clearest way to compare quantitative scores. Interactivity allows users to focus on specific brands, directly answering "How does NVIDIA compare to Intel in my budget?".
+    - Report Info: Technical concepts (VRAM, Cores). Goal: Inform. Presentation: Expandable HTML/CSS cards. Interaction: Click to reveal details. Justification: Avoids overwhelming the user with technical text upfront, promoting progressive disclosure.
+    - Report Info: Top recommended GPUs. Goal: Organize/Summarize. Presentation: Side-by-side comparison in a Tailwind grid. Justification: Provides a clear, at-a-glance summary for final decision making.
+    - Report Info: System requirements. Goal: Actionable Advice. Presentation: Interactive HTML checklist. Justification: Turns passive reading into an active self-assessment task.
+    - CONFIRMING NO SVG/Mermaid. All visuals are HTML/CSS or Canvas (Chart.js). -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 50vh;
+            max-height: 600px;
+        }
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 60vh;
+            }
+        }
+        .concept-card details[open] summary ~ * {
+            animation: sweep .5s ease-in-out;
+        }
+        @keyframes sweep {
+            0%    {opacity: 0; transform: translateY(-10px)}
+            100%  {opacity: 1; transform: translateY(0)}
+        }
+        .nav-link {
+            transition: color 0.3s ease;
+        }
+        .nav-link:hover {
+            color: #1e40af; /* Tailwind blue-800 */
+        }
+        .brand-btn.active {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-slate-700">
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <a href="#home" class="text-xl font-bold text-slate-800">GPU Finder</a>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#concepts" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">Key Concepts</a>
+                        <a href="#compare" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">Compare GPUs</a>
+                        <a href="#recommendations" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">Top Picks</a>
+                        <a href="#system" class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600">System Check</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="home" class="py-20 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">Find the Right GPU for 3D Rendering</h1>
+                <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-600">An interactive guide to selecting the best graphics card for your 3D projects within a ৳20,000 to ৳30,000 budget in Bangladesh.</p>
+            </div>
+        </section>
+
+        <section id="concepts" class="py-16 sm:py-20">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900">Understanding GPU Essentials</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-600">Grasp the core concepts that determine a GPU's performance for 3D rendering. Click each card to learn more.</p>
+                </div>
+                <div class="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                    <div class="concept-card bg-white p-6 rounded-lg shadow-md">
+                        <details>
+                            <summary class="font-semibold text-lg cursor-pointer flex items-center justify-between">
+                                <span>1. VRAM: Your Scene's Workspace</span>
+                                <span class="text-xl transition-transform duration-300 transform details-arrow ">▼</span>
+                            </summary>
+                            <div class="mt-4 text-slate-600 space-y-3">
+                                <p>VRAM (Video RAM) is high-speed memory on the GPU that stores textures, models, and other data for your scene. Insufficient VRAM causes major slowdowns as data is shifted to slower system RAM.</p>
+                                <p class="font-semibold">For 3D, VRAM is often more critical than raw speed. Prioritize getting enough for your projects.</p>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm text-left mt-4">
+                                        <thead class="bg-slate-100">
+                                            <tr><th class="p-2">Scene Complexity</th><th class="p-2">Recommended VRAM</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr class="border-b"><td class="p-2">Basic / Low-Poly</td><td class="p-2 font-medium">8-12 GB</td></tr>
+                                            <tr class="border-b"><td class="p-2">Moderately Complex</td><td class="p-2 font-medium">10-16 GB</td></tr>
+                                            <tr><td class="p-2">Highly Complex / 4K+</td><td class="p-2 font-medium">24+ GB</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div class="concept-card bg-white p-6 rounded-lg shadow-md">
+                        <details>
+                            <summary class="font-semibold text-lg cursor-pointer flex items-center justify-between">
+                                <span>2. Processing Power: The Engine</span>
+                                <span class="text-xl transition-transform duration-300 transform details-arrow">▼</span>
+                            </summary>
+                            <div class="mt-4 text-slate-600 space-y-3">
+                                <p>This is the GPU's raw calculation ability, measured by its specialized cores.</p>
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li><strong style="color: #76B900;">NVIDIA CUDA Cores:</strong> Excellent for parallel tasks and well-supported in 3D software, especially with OptiX acceleration for ray tracing.</li>
+                                    <li><strong style="color: #ED1C24;">AMD Stream Processors:</strong> The equivalent for AMD, strong in general compute and graphics.</li>
+                                    <li><strong style="color: #0071C5;">Intel Xe Cores:</strong> Intel's architecture for parallel processing, showing strong performance in modern APIs.</li>
+                                </ul>
+                                <p>For apps like Blender, NVIDIA's OptiX often provides a significant speed advantage due to dedicated hardware.</p>
+                            </div>
+                        </details>
+                    </div>
+
+                     <div class="concept-card bg-white p-6 rounded-lg shadow-md">
+                        <details>
+                            <summary class="font-semibold text-lg cursor-pointer flex items-center justify-between">
+                                <span>3. Modern Features: RT & AI</span>
+                                <span class="text-xl transition-transform duration-300 transform details-arrow">▼</span>
+                            </summary>
+                            <div class="mt-4 text-slate-600 space-y-3">
+                                <p><strong class="text-blue-600">Ray Tracing (RT):</strong> A rendering technique for photorealistic lighting, reflections, and shadows. GPUs with dedicated RT cores (like NVIDIA's RTX series) accelerate this process significantly.</p>
+                                <p><strong class="text-green-600">AI Upscaling (DLSS/XeSS):</strong> Uses AI to boost frame rates and image quality. AI Denoising (like NVIDIA OptiX) cleans up renders faster.</p>
+                                <p>While present on budget cards, the performance of these features can be limited. Don't make them the sole reason for your purchase in this price range.</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="compare" class="py-16 sm:py-20 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900">Interactive GPU Performance Comparison</h2>
+                    <p class="mt-4 max-w-3xl mx-auto text-lg text-slate-600">Compare real-world 3D rendering performance using Blender Cycles scores. Higher is better. Filter by brand to narrow your search.</p>
+                </div>
+                
+                <div class="mt-10 flex justify-center items-center space-x-2 sm:space-x-4 mb-8">
+                    <button class="brand-btn px-4 py-2 text-sm sm:text-base font-semibold rounded-full shadow-sm transition-all duration-200" data-brand="All">All Brands</button>
+                    <button class="brand-btn px-4 py-2 text-sm sm:text-base font-semibold rounded-full shadow-sm transition-all duration-200" data-brand="NVIDIA" style="background-color: #76B900; color: white;">NVIDIA</button>
+                    <button class="brand-btn px-4 py-2 text-sm sm:text-base font-semibold rounded-full shadow-sm transition-all duration-200" data-brand="AMD" style="background-color: #ED1C24; color: white;">AMD</button>
+                    <button class="brand-btn px-4 py-2 text-sm sm:text-base font-semibold rounded-full shadow-sm transition-all duration-200" data-brand="Intel" style="background-color: #0071C5; color: white;">Intel</button>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="gpuChart"></canvas>
+                </div>
+
+                <div id="gpu-list" class="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+                </div>
+            </div>
+        </section>
+
+        <section id="recommendations" class="py-16 sm:py-20">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900">Our Top Recommendations</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-600">Based on a balance of performance, VRAM, features, and value, these are our top picks in the ৳20k-৳30k range.</p>
+                </div>
+                <div class="mt-12 max-w-5xl mx-auto grid gap-8 lg:grid-cols-2">
+                    <div class="bg-white p-8 rounded-xl shadow-lg border-2 border-green-500">
+                        <h3 class="text-2xl font-bold text-slate-800">The Balanced Choice: NVIDIA RTX 3050 8GB</h3>
+                        <p class="mt-2 text-slate-600"><strong>Best for:</strong> Users who want a stable, reliable experience with broad software compatibility and excellent features like OptiX for Blender.</p>
+                        <ul class="mt-6 space-y-3 text-slate-700">
+                            <li class="flex items-start"><span class="mr-3 mt-1 text-green-500">✔</span><span><strong>Strong VRAM:</strong> 8GB is the sweet spot for handling moderately complex scenes without issues.</span></li>
+                            <li class="flex items-start"><span class="mr-3 mt-1 text-green-500">✔</span><span><strong>Mature Ecosystem:</strong> Excellent driver support and OptiX acceleration give a significant speed boost in Blender ray tracing.</span></li>
+                            <li class="flex items-start"><span class="mr-3 mt-1 text-green-500">✔</span><span><strong>Good Features:</strong> Includes hardware encoding for video, plus DLSS and hardware-accelerated ray tracing.</span></li>
+                             <li class="flex items-start"><span class="mr-3 mt-1 text-red-500">✖</span><span><strong>Price:</strong> Sits at the top end of the ৳20k-৳30k budget.</span></li>
+                        </ul>
+                    </div>
+                     <div class="bg-white p-8 rounded-xl shadow-lg border-2 border-blue-500">
+                        <h3 class="text-2xl font-bold text-slate-800">The Performance King: Intel Arc A750 8GB</h3>
+                        <p class="mt-2 text-slate-600"><strong>Best for:</strong> Users comfortable with a newer platform who want the absolute best raw rendering performance for their money in Blender.</p>
+                        <ul class="mt-6 space-y-3 text-slate-700">
+                            <li class="flex items-start"><span class="mr-3 mt-1 text-green-500">✔</span><span><strong>Top-Tier Performance:</strong> Outperforms competitors in Blender Cycles benchmarks for this price range.</span></li>
+                            <li class="flex items-start"><span class="mr-3 mt-1 text-green-500">✔</span><span><strong>Great Value:</strong> Offers 8GB VRAM and performance comparable to more expensive cards.</span></li>
+                            <li class="flex items-start"><span class="mr-3 mt-1 text-red-500">✖</span><span><strong>Driver Maturity:</strong> As a newer product, drivers can be less stable and may have compatibility issues in some professional software beyond Blender.</span></li>
+                             <li class="flex items-start"><span class="mr-3 mt-1 text-red-500">✖</span><span><strong>Power Consumption:</strong> Requires a more powerful PSU (225W TDP) than the RTX 3050.</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="system" class="py-16 sm:py-20 bg-white">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900">Don't Forget Your System!</h2>
+                    <p class="mt-4 max-w-2xl mx-auto text-lg text-slate-600">A powerful GPU needs a balanced system to perform at its best. Check these key components.</p>
+                </div>
+                <div class="mt-12 max-w-4xl mx-auto grid gap-6 md:grid-cols-2">
+                    <div class="bg-slate-50 p-6 rounded-lg">
+                        <h4 class="font-semibold text-lg">CPU (Processor)</h4>
+                        <p class="mt-2 text-slate-600">Handles scene preparation and system tasks. A weak CPU will bottleneck your new GPU. <br><strong>Recommendation:</strong> At least an Intel Core i5 or AMD Ryzen 5.</p>
+                    </div>
+                     <div class="bg-slate-50 p-6 rounded-lg">
+                        <h4 class="font-semibold text-lg">RAM (System Memory)</h4>
+                        <p class="mt-2 text-slate-600">Holds your OS and application data. If VRAM fills up, it spills into RAM. <br><strong>Recommendation:</strong> 16GB is a minimum, 32GB is ideal.</p>
+                    </div>
+                     <div class="bg-slate-50 p-6 rounded-lg">
+                        <h4 class="font-semibold text-lg">Storage (SSD)</h4>
+                        <p class="mt-2 text-slate-600">Fast storage dramatically reduces project load times and improves workflow responsiveness. <br><strong>Recommendation:</strong> An NVMe SSD for your OS and active projects.</p>
+                    </div>
+                     <div class="bg-slate-50 p-6 rounded-lg">
+                        <h4 class="font-semibold text-lg">Power Supply (PSU) & Cooling</h4>
+                        <p class="mt-2 text-slate-600">Ensure your PSU can handle the GPU's power draw (e.g., Arc A750 needs ~225W). Good case airflow is essential to prevent performance loss from heat.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-slate-800 text-white mt-10">
+        <div class="container mx-auto py-6 px-4 sm:px-6 lg:px-8 text-center text-sm text-slate-400">
+            <p>Built to simplify GPU selection for 3D artists in Bangladesh.</p>
+            <p class="mt-1">Performance data based on Blender Open Data. Prices are estimates based on local market analysis (Q2 2024) and subject to change.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const gpuData = [
+                { brand: 'Intel', name: 'Arc A750', vram: 8, score: 2149, price: '28,500', pros: 'Excellent raw performance for the price in Blender.', cons: 'Driver maturity can be a concern; high power draw.', color: '#0071C5' },
+                { brand: 'Intel', name: 'Arc A580', vram: 8, score: 1926, price: '24,500', pros: 'Great value with 8GB VRAM and strong Blender scores.', cons: 'Similar driver maturity concerns as the A750.', color: '#0071C5' },
+                { brand: 'NVIDIA', name: 'RTX 3050', vram: 8, score: 1456, price: '28,900', pros: 'Mature drivers, great features like OptiX, 8GB VRAM.', cons: 'Lower raw performance than Arc; at the top of the budget.', color: '#76B900' },
+                { brand: 'NVIDIA', name: 'GTX 1660 SUPER', vram: 6, score: 800, price: '22,500', pros: 'Affordable and reliable for basic 3D work.', cons: 'Only 6GB VRAM, no modern RT/DLSS features.', color: '#76B900' },
+                { brand: 'AMD', name: 'RX 6500 XT', vram: 8, score: 950, price: '22,000', pros: 'Affordable 8GB option.', cons: 'Poor value, lacks hardware encoding, lower performance.', color: '#ED1C24'},
+                { brand: 'AMD', name: 'RX 580', vram: 8, score: 466, price: '11,000', pros: 'Very cheap with 8GB VRAM.', cons: 'Extremely old and slow; not recommended for serious work.', color: '#ED1C24' }
+            ].sort((a, b) => b.score - a.score);
+
+            const gpuListContainer = document.getElementById('gpu-list');
+            const brandButtons = document.querySelectorAll('.brand-btn');
+            let activeBrand = 'All';
+            let chart;
+
+            function renderGpuList(filteredData) {
+                gpuListContainer.innerHTML = '';
+                filteredData.forEach(gpu => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-6 rounded-lg shadow-md transition-transform transform hover:scale-105';
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xl font-bold text-slate-800">${gpu.brand} ${gpu.name}</h3>
+                            <span class="px-3 py-1 text-sm font-semibold text-white rounded-full" style="background-color: ${gpu.color};">${gpu.brand}</span>
+                        </div>
+                        <div class="mt-4 space-y-2 text-slate-600">
+                            <p><strong>VRAM:</strong> ${gpu.vram} GB GDDR6</p>
+                            <p><strong>Est. Price:</strong> ৳${gpu.price}</p>
+                            <p><strong>Blender Score:</strong> <span class="font-bold text-lg">${gpu.score}</span></p>
+                            <div class="mt-3 pt-3 border-t">
+                                <p><strong class="text-green-600">Pro:</strong> ${gpu.pros}</p>
+                                <p class="mt-1"><strong class="text-red-600">Con:</strong> ${gpu.cons}</p>
+                            </div>
+                        </div>
+                    `;
+                    gpuListContainer.appendChild(card);
+                });
+            }
+
+            function updateChart(filteredData) {
+                const ctx = document.getElementById('gpuChart').getContext('2d');
+                const labels = filteredData.map(gpu => `${gpu.brand} ${gpu.name}`);
+                const data = filteredData.map(gpu => gpu.score);
+                const colors = filteredData.map(gpu => gpu.color);
+
+                if (chart) {
+                    chart.destroy();
+                }
+
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Blender Cycles Score (Higher is Better)',
+                            data: data,
+                            backgroundColor: colors,
+                            borderColor: colors.map(c => c + 'B3'),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.x !== null) {
+                                            label += context.parsed.x;
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Performance Score'
+                                }
+                            },
+                            y: {
+                                ticks: {
+                                    autoSkip: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function filterData() {
+                const filtered = activeBrand === 'All' 
+                    ? gpuData 
+                    : gpuData.filter(gpu => gpu.brand === activeBrand);
+                
+                renderGpuList(filtered);
+                updateChart(filtered);
+
+                brandButtons.forEach(btn => {
+                    if (btn.dataset.brand === activeBrand) {
+                        btn.classList.add('active', 'ring-2', 'ring-offset-2', `ring-${btn.dataset.brand.toLowerCase()}-500`);
+                        if(btn.dataset.brand === 'All') btn.classList.add('ring-slate-500');
+                    } else {
+                        btn.classList.remove('active', 'ring-2', 'ring-offset-2', 'ring-nvidia-500', 'ring-amd-500', 'ring-intel-500', 'ring-slate-500');
+                    }
+                });
+            }
+            
+            brandButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    activeBrand = button.dataset.brand;
+                    filterData();
+                });
+            });
+
+            const detailsElements = document.querySelectorAll('.concept-card details');
+            detailsElements.forEach(details => {
+                details.addEventListener('toggle', () => {
+                    const arrow = details.querySelector('.details-arrow');
+                    if (details.open) {
+                        arrow.style.transform = 'rotate(180deg)';
+                    } else {
+                        arrow.style.transform = 'rotate(0deg)';
+                    }
+                });
+            });
+
+            filterData();
+        });
+    </script>
+</body>
+</html>
